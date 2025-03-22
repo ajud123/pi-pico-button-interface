@@ -1,0 +1,4 @@
+pyserial-asyncio
+wxasync
+evdev
+dbus_next
