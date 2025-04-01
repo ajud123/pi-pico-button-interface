@@ -33,6 +33,11 @@ def handleInput(bank, button, state, rotation):
             # ui.write(e.EV_KEY, e.KEY_LEFTSHIFT, 1)
             ui.write(e.EV_KEY, e.KEY_F15, 1)
             ui.syn()
+    if button == 2 and state == 2 and bank == 0:
+        with uinput.UInput() as ui:
+            # ui.write(e.EV_KEY, e.KEY_LEFTSHIFT, 1)
+            ui.write(e.EV_KEY, e.KEY_F16, 1)
+            ui.syn()
     pass
 
 def redraw():
