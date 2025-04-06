@@ -393,9 +393,17 @@ def StartBUI():
                     stroke: int = data[7]
                     print(f"Drawing rect. Params: index={objIdx}, position={(x, y)}, size={(width, height)}, outline={outlineColor}, fill={fillColor}, stroke={stroke}")
                     screen.objects[objIdx] = rect.Rect(x=x, y=y, width=width, height=height, outline=outlineColor, fill=fillColor, stroke=stroke)
-
                     # Screen.drawObjects[objIdx] = TextObject(Screen.fbuf, type, xPos, yPos, label)
-
+            elif command[0] == 0x07: # draw a bitmap to screen  [index] [x] [y] [width] [height] [fillColor] [...]
+                data = usb_cdc.data.read(6)
+                objIdx: int = data[0]
+                x: int = data[1]
+                y: int = data[2]
+                width: int = data[3]
+                height: int = data[4]
+                fillColor: int = HwScreen.palette[data[5]%16] if data[5] != 0 else None
+                bitmap = displayio.Bitmap(width, height, 16)
+                screen.objects[objIdx] = bitmap
             # if command[0] == 0xFF:
                 # connected = True
             # if

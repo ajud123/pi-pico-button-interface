@@ -13,20 +13,21 @@ import math
 # 0x00 [offset]         top offset
 # 0x01 [offset]         bottom offset
 # 0x02 [index] "text"   set button label
+# 0x03 [index] [color]  set the color for the given button index
 
 # Drawing commands
 # all drawing commands have [index] as their first parameter, allowing you to edit the type of drawable object at runtime
 # to edit the type and parameters, just run the command and it will automatically update the object with new values
 # currently theres no argument decoding or specification, meaning that you cannot send arguments in any order
 # or simply updating objects with just the changed values.
-# 0x03 [index]                          retrieve object and its properties at index
-# 0x04 [index] [type] [x] [y] [xAnchor] [yAnchor] "text"    create text centered at the coordinates. 
+# 0x04 [index] [text_color] [bg_color] [x] [y] [xAnchor] [yAnchor] "text"    create text centered at the coordinates. 
+#                                                           bg_color uses 0 for no color, and the rest of the colors are used as color%16, so to get black you pass 16
 #                                                           if type is set to 0x00, the text will be white with no box below. 
 #                                                           if type is set to 0x01, the text will be white and it will be surrounded by a black box
 #                                                           if type is set to 0x02, the text will be black with no box below
 #                                                           if type is set to 0x03, the text will be black and it will be surrounded by a white box
 
-# 0x05 [index] [type] [x] [y] [xAnchor] [yAnchor] [scrollSpeedSeconds] [scrollSpeedSecondFraction] [max_chars] "text"
+# 0x05 [index] [text_color] [bg_color] [x] [y] [xAnchor] [yAnchor] [scrollSpeedSeconds] [scrollSpeedSecondFraction] [max_chars] "text"
 #                                                           create scrolling text centered at the coordinates. Arguments same as for text except with extras
 #                                                           scrollSpeedSeconds determines how many seconds between scrolling frames
 #                                                           scrollSpeedSecondFraction is the fractional part of the argument (1/[arg]).

@@ -6,6 +6,7 @@ from dbus_next.aio import MessageBus
 import math
 from main import DataProtocol
 from main import LimitedTransport
+import time
 
 # {"player": player, "properties": properties, "base": base, "metadata": metadata, "trackTitle": trackTitle, "trackArtist": trackArtist}
 class MediaSource:
@@ -23,6 +24,9 @@ class MediaSource:
     pass
 
 class MediaPlayerVariables:
+    defaultBrightness = 12
+    darkMode = 4
+    currentBrightness = defaultBrightness
     _foundSources: dict[str, MediaSource] = {} # Stores all the sources that exist
     _currentSource = "" # The current source name
     transport: LimitedTransport = None # The provided Serial transport for the button box
@@ -31,6 +35,7 @@ class MediaPlayerVariables:
     bus: MessageBus = None
     shouldRedraw: bool = True
     introspection = None
+    lastInteracted = 0
 
     @classmethod
     def GetSource(c, name) -> MediaSource: # Gets the source by the given name, otherwise returns None
@@ -68,6 +73,22 @@ async def UpdateScreen(transport: DataProtocol):
         source = MediaPlayerVariables.GetCurrentSource()
         if source != None:
             full = MediaPlayerVariables.shouldRedraw
+            if full:
+                if MediaPlayerVariables.currentBrightness != MediaPlayerVariables.defaultBrightness:
+                    colorData: list[bytes] = []
+                    for i in range(0, 6):
+                        colorData.append(bytes([3,i,MediaPlayerVariables.defaultBrightness]))
+                    transport.write(b''.join(colorData))
+                MediaPlayerVariables.currentBrightness = MediaPlayerVariables.defaultBrightness
+            elif time.time() - MediaPlayerVariables.lastInteracted > 10:
+                if MediaPlayerVariables.currentBrightness != MediaPlayerVariables.darkMode:
+                    MediaPlayerVariables.currentBrightness = MediaPlayerVariables.darkMode
+                    colorData: list[bytes] = []
+                    for i in range(0, 6):
+                        colorData.append(bytes([3,i,MediaPlayerVariables.currentBrightness]))
+                    transport.write(b''.join(colorData))
+                    full = True
+
             # Properties for drawing
             trackLengthInSeconds = source.length/1000000
             trackPositionInSeconds = await source.player.get_position()/1000000
@@ -79,17 +100,17 @@ async def UpdateScreen(transport: DataProtocol):
 
 
             fulldata: list[bytes] = [
-                b"\x04\xAF\x01"+bytes([64, 0, 128, 0])+trackString.encode()+b"\n", # Current track progress text
-                b"\x04\xAE\x00"+bytes([64, 40, 128, 0])+status.encode()+b"\n", # Playing, paused status
-                b"\x06\xA9"+bytes([0, 0, int(128*(trackPositionInSeconds/(trackLengthInSeconds if trackLengthInSeconds > 0 else 1)))+1, 16, 12, 12, 1]), # Progress bar 2
+                b"\x04\xAF"+bytes([MediaPlayerVariables.currentBrightness, 16, 64, 0, 128, 0])+trackString.encode()+b"\n", # Current track progress text
+                b"\x04\xAE"+bytes([MediaPlayerVariables.currentBrightness, 0, 64, 40, 128, 0])+status.encode()+b"\n", # Playing, paused status
+                b"\x06\xA9"+bytes([0, 0, int(128*(trackPositionInSeconds/(trackLengthInSeconds if trackLengthInSeconds > 0 else 1)))+1, 16, MediaPlayerVariables.currentBrightness, MediaPlayerVariables.currentBrightness, 1]), # Progress bar 2
             ]
             if full:
                 optionalData: list[bytes] = [
-                    b"\x04\xAD\x00"+bytes([64, 20, 128, 0])+programTitle.encode()+b"\n", # Program name
-                    b"\x05\xAA\x01"+bytes([64, 50, 128, 0, 0, 4, 10])+artistLine.encode()+b"\n", # Artists
-                    b"\x05\xB9\x01"+bytes([64, 60, 128, 0, 0, 4, 10])+source.trackTitle.encode()+b"\n", # Track title
-                    b"\x04\xB1"+bytes([1, 64, 78, 128, 128])+b"Volume: "+str( int(volume*100)/1).encode()+b"%\n" # Volume
-                    b"\x06\xA8"+bytes([0, 0, 128, 16, 12, 0, 1]), # Progress bar
+                    b"\x04\xAD"+bytes([MediaPlayerVariables.currentBrightness, 0, 64, 20, 128, 0])+programTitle.encode()+b"\n", # Program name
+                    b"\x05\xAA"+bytes([MediaPlayerVariables.currentBrightness, 16, 64, 50, 128, 0, 0, 4, 10])+artistLine.encode()+b"\n", # Artists
+                    b"\x05\xB9"+bytes([MediaPlayerVariables.currentBrightness, 16, 64, 60, 128, 0, 0, 4, 10])+source.trackTitle.encode()+b"\n", # Track title
+                    b"\x04\xB1"+bytes([MediaPlayerVariables.currentBrightness, 0, 64, 78, 128, 128])+b"Volume: "+str( int(volume*100)/1).encode()+b"%\n" # Volume
+                    b"\x06\xA8"+bytes([0, 0, 128, 16, MediaPlayerVariables.currentBrightness, 0, 1]), # Progress bar
                 ]
                 fulldata.extend(optionalData)
 
@@ -202,7 +223,7 @@ async def ChangeVolume(change):
         await source.player.set_volume(source.volume)
     
     # volume = await source.player.get_volume()
-    MediaPlayerVariables.transport.write(b"\x04\xB1"+bytes([1, 64, 78, 128, 128])+b"Volume: "+str( int(source.volume*100)/1).encode()+b"%\n")
+    MediaPlayerVariables.transport.write(b"\x04\xB1"+bytes([MediaPlayerVariables.currentBrightness, 0, 64, 78, 128, 128])+b"Volume: "+str( int(source.volume*100)/1).encode()+b"%\n")
 
 def Previous():
     current = MediaPlayerVariables.GetCurrentSource()
@@ -250,6 +271,7 @@ async def init(propertyChangedCallback: Callable[[Any, str], Any], transport: Li
 
 # Input handler
 def handleInput(bank, button, state, rotation):
+    MediaPlayerVariables.lastInteracted = time.time()
     if button == 0 and state == 2 and (bank == 0 or bank == 1):
         modifier = -1 if bank == 0 else 1 if bank == 1 else 0
         asyncio.create_task(generatePlayers(MediaPlayerVariables.bus, MediaPlayerVariables.introspection))
