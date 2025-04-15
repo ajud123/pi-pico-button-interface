@@ -171,7 +171,9 @@ async def generatePlayer(bus: MessageBus, playerName, introspection):
                 if "xesam:artist" in changed_properties["Metadata"].value:
                     source.trackArtist = changed_properties["Metadata"].value["xesam:artist"].value
                     print("Track artist: " + str(source.trackArtist))
-                MediaPlayerVariables.shouldRedraw = True
+                if source == MediaPlayerVariables.GetCurrentSource():
+                    print("source is same as displayed, redrawing.")
+                    MediaPlayerVariables.shouldRedraw = True
                 print("")
         pass
 
